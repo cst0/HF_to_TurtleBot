@@ -290,7 +290,7 @@ class SimpleDQN(object):
         #            self.log_dir + os.sep + self.env_id + experiment_file_name + ".npz"
         #        )
         # TODO: FIX ME LATER
-        path_to_load = "/home/turtlebot/turtlebot_navi_ws/src/HF_to_TurtleBot/curriculum_navigation/src/TurtleBot_crafting/results"
+        path_to_load = "/home/turtlebot/turtlebot_navi_ws/src/HF_to_TurtleBot/curriculum_navigation/src/TurtleBot_crafting/results/NovelGridworld-v0_c0_b0_e3.npz"
         data = np.load(path_to_load)
         self._model["W1"] = data["layer1"]
         self._model["W2"] = data["layer2"]
