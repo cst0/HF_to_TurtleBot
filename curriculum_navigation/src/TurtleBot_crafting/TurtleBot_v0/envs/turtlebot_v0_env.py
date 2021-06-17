@@ -116,12 +116,12 @@ class TurtleBotRosNode(object):
 
     def goto_ccwise(self):
         req = GoToRelativeRequest()
-        req.movement = req.CWISE
+        req.movement = req.CCWISE
         self.goto_relative(req)
 
     def goto_forward(self):
         req = GoToRelativeRequest()
-        req.movement = req.CWISE
+        req.movement = req.FORWARD
         self.goto_relative(req)
 
     def halt(self):
@@ -230,6 +230,16 @@ class TurtleBotV0Env(gym.Env):
         y_rand = np.array([0.3, 0.1, 0.62, 0.41, 0.9, 0.25, 0.1])
         self.x_pos = []
         self.y_pos = []
+        dummy_req = ReadEnvironmentResponse()
+        self.objects_listing = [
+            dummy_req.TREE1,
+            dummy_req.TREE2,
+            dummy_req.TREE3,
+            dummy_req.TREE4,
+            dummy_req.ROCK1,
+            dummy_req.ROCK2,
+            dummy_req.CRAFTING_TABLE,
+        ]
 
         for i in range(self.n_trees):  # Instantiate the trees
             self.x_pos.append(-self.width / 2 + self.width * x_rand[i])
@@ -325,27 +335,52 @@ class TurtleBotV0Env(gym.Env):
             x = basePos[0]
             y = basePos[1]
             print("Inventory: ", self.inventory)
+            this_index_removed = None
+            this_object_removed = None
             for i in range(self.n_trees + self.n_rocks + self.n_table):
                 if abs(self.x_pos[i] - x) < 0.3:
                     if abs(self.y_pos[i] - y) < 0.3:
                         if i < self.n_trees:
                             self.inventory["wood"] += 1
-                            object_removed = 1
-                            index_removed = i
-                            if self.inventory["wood"] <= 2:
-                                reward = self.reward_break
-                            elif self.inventory["wood"] > 2:
-                                reward = self.reward_extra_inventory
+                            this_object_removed = 1
+                            this_index_removed = i
+                            #if self.inventory["wood"] <= 2:
+                            #    reward = self.reward_break
+                            #elif self.inventory["wood"] > 2:
+                            #    reward = self.reward_extra_inventory
                         elif i > self.n_trees - 1 and i < self.n_trees + self.n_rocks:
                             self.inventory["stone"] += 1
-                            object_removed = 2
-                            index_removed = i
-                            if self.inventory["stone"] <= 1:
-                                reward = self.reward_break
-                            elif self.inventory["stone"] > 1:
-                                reward = self.reward_extra_inventory
+                            this_object_removed = 2
+                            this_index_removed = i
+                            #if self.inventory["stone"] <= 1:
+                            #    reward = self.reward_break
+                            #elif self.inventory["stone"] > 1:
+                            #    reward = self.reward_extra_inventory
+
+            if this_object_removed is not None:
+                print('expected to get object, index', this_index_removed, ' object ', this_object_removed)
+            reading = self.RosNode.read_environment()
+            if (
+                reading.reading == reading.TREE1
+                or reading.reading == reading.TREE2
+                or reading.reading == reading.TREE3
+                or reading.reading == reading.TREE4
+            ):
+                # this is a tree. which tree is it?
+                object_removed = 1
+                for n in range(0, len(self.objects_listing)):
+                    if self.objects_listing[n] == reading.reading:
+                        index_removed = n
+
+            if reading.reading == reading.ROCK1 or reading.reading == reading.ROCK2:
+                # this is a rock. which rock is it?
+                object_removed = 2
+                for n in range(0, len(self.objects_listing)):
+                    if self.objects_listing[n] == reading.reading:
+                        index_removed = n
 
             if object_removed == 1:
+                self.objects_listing.pop(index_removed)
                 self.x_pos.pop(index_removed)
                 self.y_pos.pop(index_removed)
                 self.x_low.pop(index_removed)
@@ -360,6 +395,7 @@ class TurtleBotV0Env(gym.Env):
                 # print("obs: ",self.get_observation())
 
             if object_removed == 2:
+                self.objects_listing.pop(index_removed)
                 self.x_pos.pop(index_removed)
                 self.y_pos.pop(index_removed)
                 self.x_low.pop(index_removed)
@@ -376,19 +412,20 @@ class TurtleBotV0Env(gym.Env):
             x = basePos[0]
             y = basePos[1]
 
-            for i in range(self.n_trees + self.n_rocks + self.n_table):
-                if abs(self.x_pos[i] - x) < 0.3:
-                    if abs(self.y_pos[i] - y) < 0.3:
-                        if i > self.n_trees + self.n_rocks - 1:
-                            if (
-                                self.inventory["wood"] >= 2
-                                and self.inventory["stone"] >= 1
-                            ):
-                                self.inventory["pogo"] += 1
-                                self.inventory["wood"] -= 2
-                                self.inventory["stone"] -= 1
-                                done = True
-                                reward = self.reward_done
+            reading = self.RosNode.read_environment()
+            at_crafting_table = reading.reading == reading.CRAFTING_TABLE
+
+            if (
+                at_crafting_table
+                and self.inventory["wood"] >= 2
+                and self.inventory["stone"] >= 1
+            ):
+                self.inventory["pogo"] += 1
+                self.inventory["wood"] -= 2
+                self.inventory["stone"] -= 1
+                done = True
+                reward = self.reward_done
+
         self.agent_loc = basePos
         self.agent_orn = baseOrn
         if self.goal_env == 0:
