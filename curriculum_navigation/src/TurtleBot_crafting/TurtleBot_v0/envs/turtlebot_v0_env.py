@@ -1,12 +1,32 @@
+import copy
 import math
-import time
-import numpy as np
 import os
-import matplotlib.pyplot as plt
+import sys
+import time
+
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
-import copy
+import matplotlib.pyplot as plt
+from movement_utils.srv import (
+    GetPosition,
+    GetPositionRequest,
+    GetPositionResponse,
+    GoToRelative,
+    GoToRelativeRequest,
+    GoToRelativeResponse,
+    ResetOdom,
+    ResetOdomRequest,
+    ResetOdomResponse,
+)
+import numpy as np
+from qr_state_reader.srv import (
+    ReadEnvironment,
+    ReadEnvironmentRequest,
+    ReadEnvironmentResponse,
+)
+import rospy
+
 
 # import pybullet as p
 
@@ -17,6 +37,114 @@ import copy
 # half_beams = 60
 # number_of_episodes = 50000
 # time_per_episode = 600
+
+
+class TurtleBotRosNode(object):
+    def __init__(self, timeout_seconds=15):
+        rospy.init_node("TurtleBotCurriculumNav", anonymous=False)
+        rospy.on_shutdown(self.shutdown)
+        rospy.loginfo("Starting up turtlebot ROS node.")
+
+        srv_str_get_position = "/movement_wrapper/get_position"
+        srv_str_goto_relative = "/movement_wrapper/goto_relative"
+        srv_str_reset_odom = "/movement_wrapper/reset_odom"
+        srv_str_read_env = "/qr_state_reader/read_environment"
+
+        try:
+            rospy.loginfo("Attempting to connect to movement wrapper services.")
+            rospy.wait_for_service(srv_str_get_position, timeout=timeout_seconds)
+            self.service_get_position = rospy.ServiceProxy(
+                srv_str_get_position, GetPosition
+            )
+            self.service_goto_position = rospy.ServiceProxy(
+                srv_str_goto_relative, GoToRelative
+            )
+            self.service_reset_odom = rospy.ServiceProxy(srv_str_reset_odom, ResetOdom)
+        except rospy.ROSException:
+            rospy.logerr(
+                "Tried accessing a movement_wrapper service but failed. Exiting."
+            )
+            sys.exit(1)
+        rospy.loginfo("Connected to movement wrapper services successfully.")
+
+        try:
+            rospy.loginfo("Attempting to connect to qr service.")
+            rospy.wait_for_service(srv_str_read_env, timeout=timeout_seconds)
+            self.service_read_env = rospy.ServiceProxy(
+                srv_str_read_env, ReadEnvironment
+            )
+        except rospy.ROSException:
+            rospy.logerr(
+                "Tried accessing the qr_state_reader service but failed. Exiting."
+            )
+            sys.exit(1)
+        rospy.loginfo("Connected to qr service successfully. Ready to go!")
+
+        self.reset_odom()
+
+    def __del__(self):
+        self.service_get_position.close()
+        self.service_goto_position.close()
+        self.service_reset_odom.close()
+        self.service_read_env.close()
+
+    def shutdown(self):
+        self.halt()
+        del self
+
+    def get_position(self) -> GetPositionResponse:
+        try:
+            req = GetPositionRequest()
+            return self.service_get_position(req)
+        except rospy.ServiceException as e:
+            rospy.logerr("Service call failed:" + str(e))
+            return GetPositionResponse()
+
+    def goto_relative(self, req: GoToRelativeRequest) -> GoToRelativeResponse:
+        resp = GoToRelativeResponse()
+        try:
+            resp = self.service_goto_position(req)
+        except rospy.ServiceException as e:
+            rospy.logerr("Service call failed:" + str(e))
+
+        return resp
+
+    def goto_cwise(self):
+        req = GoToRelativeRequest()
+        req.movement = req.CWISE
+        self.goto_relative(req)
+
+    def goto_ccwise(self):
+        req = GoToRelativeRequest()
+        req.movement = req.CWISE
+        self.goto_relative(req)
+
+    def goto_forward(self):
+        req = GoToRelativeRequest()
+        req.movement = req.CWISE
+        self.goto_relative(req)
+
+    def halt(self):
+        req = GoToRelativeRequest()
+        req.movement = req.STOP
+        self.goto_relative(req)
+
+    def reset_odom(self) -> ResetOdomResponse:
+        try:
+            req = ResetOdomRequest()
+            self.service_reset_odom(req)
+        except rospy.ServiceException as e:
+            rospy.logerr("Service call failed:" + str(e))
+
+        return ResetOdomResponse()
+
+    def read_environment(self) -> ReadEnvironmentResponse:
+        try:
+            req = ReadEnvironmentRequest()
+            return self.service_read_env(req)
+        except rospy.ServiceException as e:
+            rospy.logerr("Service call failed:" + str(e))
+            return ReadEnvironmentResponse()
 
 
 class TurtleBotV0Env(gym.Env):
@@ -30,11 +158,7 @@ class TurtleBotV0Env(gym.Env):
         goal_env=None,
         is_final=False,
     ):
-        # super(TurtleBotV0Env, self).__init__()
-
-        # p.connect(p.GUI)
-        # p.connect(p.SHARED_MEMORY)
-        # p.connect(p.DIRECT)
+        self.RosNode = TurtleBotRosNode()
 
         self.width = map_width
         self.height = map_height
@@ -159,7 +283,6 @@ class TurtleBotV0Env(gym.Env):
         return obs
 
     def step(self, action):
-
         basePos = copy.deepcopy(self.agent_loc)
         baseOrn = copy.deepcopy(self.agent_orn)
 
@@ -167,33 +290,20 @@ class TurtleBotV0Env(gym.Env):
         done = False
 
         forward = 0
-        turn = 0
-        speed = 10
-        rightWheelVelocity = 0
-        leftWheelVelocity = 0
         object_removed = 0
         index_removed = 0
 
-        # if action == 0: # Turn left
-        # 	turn = 0.5
-        # 	rightWheelVelocity = turn*speed
-        # 	leftWheelVelocity = -turn*speed
-
         if action == 0:  # Turn right
-            turn = 0.5
             baseOrn -= 20 * np.pi / 180
-            # rightWheelVelocity = -turn*speed
-            # leftWheelVelocity = turn*speed
+            self.RosNode.goto_cwise()
 
         elif action == 1:  # Turn left
-            turn = 0.5
             baseOrn += 20 * np.pi / 180
-            # rightWheelVelocity = turn*speed
-            # leftWheelVelocity = -turn*speed
+            self.RosNode.goto_ccwise()
 
         elif action == 2:  # Move forward
-            x_new = basePos[0] + 0.25 * np.cos(baseOrn)
-            y_new = basePos[1] + 0.25 * np.sin(baseOrn)
+            x_new = basePos[0] + 0.25 * float(np.cos(baseOrn))
+            y_new = basePos[1] + 0.25 * float(np.sin(baseOrn))
             forward = 1
             for i in range(self.n_trees + self.n_rocks + self.n_table):
                 if abs(self.x_pos[i] - x_new) < 0.15:
@@ -209,6 +319,7 @@ class TurtleBotV0Env(gym.Env):
             if forward == 1:
                 basePos[0] = x_new
                 basePos[1] = y_new
+                self.RosNode.goto_forward()
 
         elif action == 3:  # Break
             x = basePos[0]
@@ -278,22 +389,8 @@ class TurtleBotV0Env(gym.Env):
                                 self.inventory["stone"] -= 1
                                 done = True
                                 reward = self.reward_done
-
-                # elif self.inventory['wood'] == 1 or self.inventory['stone'] == 1:
-                # 	reward = self.reward_done
-                # 	done = True
-
-        # if done == True:
-        # print("inventory: ", self.inventory)
-
         self.agent_loc = basePos
         self.agent_orn = baseOrn
-
-        # for i in range(10):
-        # 	p.setJointMotorControl2(self.turtle,0,p.VELOCITY_CONTROL,targetVelocity=leftWheelVelocity,force=1000)
-        # 	p.setJointMotorControl2(self.turtle,1,p.VELOCITY_CONTROL,targetVelocity=rightWheelVelocity,force=1000)
-        # 	p.stepSimulation()
-
         if self.goal_env == 0:
             x = basePos[0]
             y = basePos[1]

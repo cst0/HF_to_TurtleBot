@@ -2,18 +2,14 @@
 
 import os
 import sys
+import time
 
 import gym
-import time
+import matplotlib.pyplot as plt
 import numpy as np
 
-# import gym_novel_gridworlds
-import TurtleBot_v0
-
-# sys.path.append('gym_novel_gridworlds/envs')
-# from novel_gridworld_v0_env import NovelGridworldV0Env
 from SimpleDQN import SimpleDQN
-import matplotlib.pyplot as plt
+import TurtleBot_v0
 
 
 def CheckTrainingDoneCallback(reward_array, done_array, env):
@@ -41,8 +37,7 @@ def CheckTrainingDoneCallback(reward_array, done_array, env):
         return 0
 
 
-if __name__ == "__main__":
-
+def main():
     no_of_environmets = 4
 
     width_array = [1.5, 2.5, 3, 3]
@@ -166,7 +161,6 @@ if __name__ == "__main__":
 
             new_obs, reward, done, info = env.step(a)
             print("At time: {}, action taken: {}".format(t_step, a))
-            time.sleep(0.1)
 
             # give reward
             agent.give_reward(reward)
@@ -226,77 +220,6 @@ if __name__ == "__main__":
 
                     break
 
-    # print("Total epsiode array is: ", total_episodes_arr)
 
-    # log_dir = 'logs_' + str(random_seed)
-    # os.makedirs(log_dir, exist_ok = True)
-
-    # total_timesteps_array = np.asarray(total_timesteps_array)
-    # print("size total_timesteps_array: ", total_timesteps_array.shape)
-
-    # total_reward_array = np.asarray(total_reward_array)
-    # print("size total_reward_array: ", total_reward_array.shape)
-
-    # avg_reward_array = np.asarray(avg_reward_array)
-    # print("size avg_reward_array: ", avg_reward_array.shape)
-
-    # total_episodes_arr = np.asarray(total_episodes_arr)
-    # print("size total_episodes_arr: ", total_episodes_arr.shape)
-
-    # task_completion_arr = np.asarray(task_completion_array)
-
-    # # final_timesteps_array = np.asarray(final_timesteps_array)
-    # # print("size final_timesteps_array: ", final_timesteps_array.shape)
-
-    # # final_reward_array = np.asarray(final_reward_array)
-    # # print("size final_reward_array: ", final_reward_array.shape)
-
-    # # final_avg_reward_array = np.asarray(final_avg_reward_array)
-    # # print("size final_avg_reward_array: ", final_avg_reward_array.shape)
-
-    # experiment_file_name_total_timesteps = 'randomseed_' + str(random_seed) + '_total_timesteps'
-    # path_to_save_total_timesteps = log_dir + os.sep + experiment_file_name_total_timesteps + '.npz'
-
-    # experiment_file_name_total_reward = 'randomseed_' + str(random_seed) + '_total_reward'
-    # path_to_save_total_reward = log_dir + os.sep + experiment_file_name_total_reward + '.npz'
-
-    # experiment_file_name_avg_reward = 'randomseed_' + str(random_seed) + '_avg_reward'
-    # path_to_save_avg_reward = log_dir + os.sep + experiment_file_name_avg_reward + '.npz'
-
-    # experiment_file_name_total_episodes = 'randomseed_' + str(random_seed) + '_total_episodes'
-    # path_to_save_total_episodes = log_dir + os.sep + experiment_file_name_total_episodes + '.npz'
-
-    # experiment_file_name_task_completion = 'randomseed_' + str(random_seed) + '_task_completion_curr'
-    # path_to_save_task_completion = log_dir + os.sep + experiment_file_name_task_completion + '.npz'
-
-    # # experiment_file_name_final_timesteps = 'randomseed_' + str(random_seed) + '_final_timesteps'
-    # # path_to_save_final_timesteps = log_dir + os.sep + experiment_file_name_final_timesteps + '.npz'
-
-    # # experiment_file_name_final_reward = 'randomseed_' + str(random_seed) + '_final_reward'
-    # # path_to_save_final_reward = log_dir + os.sep + experiment_file_name_final_reward + '.npz'
-
-    # # experiment_file_name_final_avg_reward = 'randomseed_' + str(random_seed) + '_final_avg_reward'
-    # # path_to_save_final_avg_reward = log_dir + os.sep + experiment_file_name_final_avg_reward + '.npz'
-
-    # np.savez_compressed(path_to_save_total_timesteps, curriculum_timesteps = total_timesteps_array)
-    # # np.delete(total_timesteps_array)
-
-    # np.savez_compressed(path_to_save_total_reward, curriculum_reward = total_reward_array)
-    # # np.delete(total_reward_array)
-
-    # np.savez_compressed(path_to_save_avg_reward, curriculum_avg_reward = avg_reward_array)
-    # # np.delete(avg_reward_array)
-
-    # np.savez_compressed(path_to_save_total_episodes, curriculum_episodes = total_episodes_arr)
-    # # np.delete(total_episodes_arr)
-
-    # np.savez_compressed(path_to_save_task_completion, task_completion_curr = task_completion_arr)
-
-    # # np.savez_compressed(path_to_save_final_timesteps, final_timesteps = final_timesteps_array)
-    # # # np.delete(final_timesteps_array)
-
-    # # np.savez_compressed(path_to_save_final_reward, final_reward = final_reward_array)
-    # # # final_reward_array.cler()
-
-    # # np.savez_compressed(path_to_save_final_avg_reward, final_avg_reward = final_avg_reward_array)
-    # # # np.delete(final_avg_reward_array)
+if __name__ == "__main__":
+    main()
