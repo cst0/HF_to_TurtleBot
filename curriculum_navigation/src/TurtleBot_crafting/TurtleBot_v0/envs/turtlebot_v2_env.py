@@ -1,19 +1,14 @@
-#!/usr/bin/env python3.7
-
-
 import math
 import time
 import numpy as np
 import os
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 import copy
 import pybullet as p
-import rospy
-from geometry_msgs.msg import Twist
-# from pybullet_utils import bullet_client as bc
+
 # REWARD_STEP = -1
 # REWARD_DONE = 5000
 # REWARD_BREAK = 300
@@ -22,62 +17,14 @@ from geometry_msgs.msg import Twist
 # number_of_episodes = 50000
 # time_per_episode = 600
 
-# class GoForward():
-#     def __init__(self, action):
-#         # initiliaze
-#         rospy.init_node('GoForward', anonymous=False)
-
-#         # tell user how to stop TurtleBot
-#         rospy.loginfo("To stop TurtleBot CTRL + C")
-
-#         # What function to call when you ctrl + c    
-#         rospy.on_shutdown(self.shutdown)
-
-#         # Create a publisher which can "talk" to TurtleBot and tell it to move
-#         # Tip: You may need to change cmd_vel_mux/input/navi to /cmd_vel if you're not using TurtleBot2
-#         self.cmd_vel = rospy.Publisher('cmd_vel_mux/input/navi', Twist, queue_size=10)
-
-#         #TurtleBot will stop if we don't keep telling it to move.  How often should we tell it to move? 10 HZ
-#         r = rospy.Rate(10);
-
-#         # Twist is a datatype for velocity
-#         move_cmd = Twist()
-#         # let's go forward at 0.2 m/s
-#         if action == 2:
-# 	        move_cmd.linear.x = 0
-# 	        move_cmd.angular.z = 0
-# 	    elif action == 1: #Left
-# 	        move_cmd.linear.x = 0
-# 	        move_cmd.angular.z = -0.34
-# 		elif action == 0: #Right
-# 	        move_cmd.linear.x = 0
-# 	        move_cmd.angular.z = 0.34
-
-#         for j in range(1):
-#             for i in range(10):
-#                 self.cmd_vel.publish(move_cmd)
-#                 r.sleep()
-
-    # def shutdown(self):
-    #     # stop turtlebot
-    #     rospy.loginfo("Stop TurtleBot")
-    # # a default Twist has linear.x of 0 and angular.z of 0.  So it'll stop TurtleBot
-    #     self.cmd_vel.publish(Twist())
-    # # sleep just makes sure TurtleBot receives the stop command prior to shutting down the script
-    #     rospy.sleep(1)
-
 class TurtleBotV2Env(gym.Env):
 
 	def __init__(self, map_width=None, map_height=None, items_id=None, items_quantity=None, initial_inventory = None, goal_env = None, is_final = False):
 		# super(TurtleBotV0Env, self).__init__()
 
-		# p0 = bc.BulletClient(connection_mode=p.GUI)
-		# print("hereee")
 		p.connect(p.GUI)
-		# p.connect(p.SHARED_MEMORY,1234) 
 		# p.connect(p.SHARED_MEMORY)
 		# p.connect(p.DIRECT)
-		# p.connect(p.UDP,"127.0.0.1")
 
 
 		self.width = map_width
@@ -128,8 +75,8 @@ class TurtleBotV2Env(gym.Env):
 
 		self.env_step_counter = 0 
 		offset = [0,0,0]
-		self.plane = p.loadURDF("/home/turtlebot/turtlebot_navi/src/turtlebot_navigation/src/1/data/plane.urdf")
-		self.turtle = p.loadURDF("/home/turtlebot/turtlebot_navi/src/turtlebot_navigation/src/1/data/turtlebot.urdf",offset)
+		self.plane = p.loadURDF("plane.urdf")
+		self.turtle = p.loadURDF("turtlebot.urdf",offset)
 
 		self.trees = []
 		self.rocks = []
@@ -137,30 +84,32 @@ class TurtleBotV2Env(gym.Env):
 		self.n_trees = self.n_trees_org
 		self.n_rocks = self.n_rocks_org
 		self.n_table = self.n_crafting_table
-		x_rand = np.random.rand(self.n_trees + self.n_rocks + self.n_table, 1)
-		y_rand = np.random.rand(self.n_trees + self.n_rocks + self.n_table, 1)
+		# x_rand = np.random.rand(self.n_trees + self.n_rocks + self.n_table, 1)
+		# y_rand = np.random.rand(self.n_trees + self.n_rocks + self.n_table, 1)
+		x_rand = np.array([0.1,0.2,0.3,0.7,0.8,0.9,0.48])
+		y_rand = np.array([0.3,0.1,0.62,0.41,0.9,0.25,0.1])
 		self.x_pos = []
 		self.y_pos = []
 
 		for i in range(self.n_trees): # Instantiate the trees 
 			self.x_pos.append(-self.width/2+self.width*x_rand[i])
 			self.y_pos.append(-self.height/2+self.height*y_rand[i])
-			self.trees.append(p.loadURDF("/home/turtlebot/turtlebot_navi/src/turtlebot_navigation/src/1/data/trees.urdf", basePosition=[-self.width/2+self.width*x_rand[i], -self.height/2+self.height*y_rand[i], 0], useFixedBase = 1))
+			self.trees.append(p.loadURDF("trees.urdf", basePosition=[-self.width/2+self.width*x_rand[i], -self.height/2+self.height*y_rand[i], 0], useFixedBase = 1))
 
 		for i in range(self.n_rocks): # Instantiate the rocks
 			self.x_pos.append(-self.width/2+self.width*x_rand[i + self.n_trees])
 			self.y_pos.append(-self.height/2+self.height*y_rand[i + self.n_trees])
-			self.rocks.append(p.loadURDF("/home/turtlebot/turtlebot_navi/src/turtlebot_navigation/src/1/data/rocks.urdf", basePosition=[-self.width/2+self.width*x_rand[i+self.n_trees], -self.height/2+self.height*y_rand[i+self.n_trees], 0], useFixedBase = 1))
+			self.rocks.append(p.loadURDF("rocks.urdf", basePosition=[-self.width/2+self.width*x_rand[i+self.n_trees], -self.height/2+self.height*y_rand[i+self.n_trees], 0], useFixedBase = 1))
 
 		for i in range(self.n_table):
 			if abs(-self.width/2+self.width*x_rand[i + self.n_trees + self.n_rocks]) < 0.3 and abs(-self.height/2+self.height*y_rand[i + self.n_trees + self.n_rocks]) < 0.3:
 				self.x_pos.append(self.width/2 - 0.05)
 				self.y_pos.append(self.height/2 - 0.05)
-				self.table.append(p.loadURDF("/home/turtlebot/turtlebot_navi/src/turtlebot_navigation/src/1/data/table.urdf", basePosition=[self.width/2 - 0.05, self.height/2 - 0.05, 0], useFixedBase = 1))
+				self.table.append(p.loadURDF("table.urdf", basePosition=[self.width/2 - 0.05, self.height/2 - 0.05, 0], useFixedBase = 1))
 			else:
 				self.x_pos.append(-self.width/2+self.width*x_rand[i + self.n_trees + self.n_rocks])
 				self.y_pos.append(-self.height/2+self.height*y_rand[i + self.n_trees + self.n_rocks])
-				self.table.append(p.loadURDF("/home/turtlebot/turtlebot_navi/src/turtlebot_navigation/src/1/data/table.urdf", basePosition=[-self.width/2+self.width*x_rand[i+self.n_trees+self.n_rocks], -self.height/2+self.height*y_rand[i+self.n_rocks+self.n_trees], 0], useFixedBase = 1))
+				self.table.append(p.loadURDF("table.urdf", basePosition=[-self.width/2+self.width*x_rand[i+self.n_trees+self.n_rocks], -self.height/2+self.height*y_rand[i+self.n_rocks+self.n_trees], 0], useFixedBase = 1))
 
 		self.inventory = dict([('wood', self.starting_trees), ('stone', self.starting_rocks),('pogo',0)])
 		self.x_low = [i-0.15 for i in self.x_pos]
@@ -195,13 +144,12 @@ class TurtleBotV2Env(gym.Env):
 			rightWheelVelocity = -turn*speed
 			leftWheelVelocity = turn*speed
 			self.nav_count += 1
-			# GoForward(0)
 		elif action == 1: # Turn left
 			turn = 0.5
 			rightWheelVelocity = turn*speed
 			leftWheelVelocity = -turn*speed
 			self.nav_count += 1
-			# GoForward(1)
+
 		elif action == 2: #Move forward
 			x_new = basePos[0] + 0.05*np.cos(rot_angle)
 			y_new = basePos[1] + 0.05*np.sin(rot_angle)
@@ -217,9 +165,6 @@ class TurtleBotV2Env(gym.Env):
 
 			rightWheelVelocity = forward*speed
 			leftWheelVelocity = forward*speed
-			# if forward == 1:
-			# 	GoForward(2)
-			# 	time.sleep(3.0)
 
 		elif action == 3: # Break
 			x = basePos[0]
@@ -244,6 +189,7 @@ class TurtleBotV2Env(gym.Env):
 								reward = self.reward_break
 							elif self.inventory['stone'] > 1:
 								reward = self.reward_extra_inventory
+
 		
 			if object_removed == 1:
 				self.x_pos.pop(index_removed)

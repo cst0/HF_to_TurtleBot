@@ -2,7 +2,7 @@ import math
 import time
 import numpy as np
 import os
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
