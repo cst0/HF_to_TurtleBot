@@ -309,10 +309,12 @@ class TurtleBotV0Env(gym.Env):
         if action == 0:  # Turn right
             baseOrn -= 20 * np.pi / 180
             self.RosNode.goto_cwise()
+            time.sleep(1)
 
         elif action == 1:  # Turn left
             baseOrn += 20 * np.pi / 180
             self.RosNode.goto_ccwise()
+            time.sleep(1)
 
         elif action == 2:  # Move forward
             x_new = basePos[0] + 0.25 * float(np.cos(baseOrn))
@@ -334,8 +336,9 @@ class TurtleBotV0Env(gym.Env):
                 basePos[1] = y_new
                 self.RosNode.goto_forward()
                 point = self.RosNode.get_position().point
-                #basePos[0] = point.x
-                #basePos[1] = point.y
+                time.sleep(1)
+                # basePos[0] = point.x
+                # basePos[1] = point.y
 
         elif action == 3:  # Break
             x = basePos[0]
@@ -365,76 +368,83 @@ class TurtleBotV0Env(gym.Env):
                             #    reward = self.reward_extra_inventory
 
             if add_to_inventory:
-                print("object interaction with type ", object_removed, "index", index_removed)
+                read = self.RosNode.read_environment()
+                for _ in range(0, 5):
+                    if read.reading == read.NONE:
+                        read = self.RosNode.read_environment()
+                if read.reading == read.NONE:
+                    rospy.logerr(
+                        "There should have been an object there, but I sure don't see it..."
+                    )
+                print(
+                    "object interaction with type ",
+                    object_removed,
+                    "index",
+                    index_removed,
+                )
                 print("I think I'm at", x, ",", y)
-                time.sleep(20)
 
-            #            reading = self.RosNode.read_environment()
-            #            if (
-            #                reading.reading == reading.TREE1
-            #                or reading.reading == reading.TREE2
-            #                or reading.reading == reading.TREE3
-            #                or reading.reading == reading.TREE4
-            #            ):
-            #                # this is a tree. which tree is it?
-            #                object_removed = 1
-            #                for n in range(0, len(self.objects_listing)):
-            #                    if self.objects_listing[n] == reading.reading:
-            #                        index_removed = n
-            #
-            #            if reading.reading == reading.ROCK1 or reading.reading == reading.ROCK2:
-            #                # this is a rock. which rock is it?
-            #                object_removed = 2
-            #                for n in range(0, len(self.objects_listing)):
-            #                    if self.objects_listing[n] == reading.reading:
-            #                        index_removed = n
+                if (
+                    read.reading == read.TREE1
+                    or read.reading == read.TREE2
+                    or read.reading == read.TREE3
+                    or read.reading == read.TREE4
+                ):
+                    if object_removed == 1:
+                        self.objects_listing.pop(index_removed)
+                        self.x_pos.pop(index_removed)
+                        self.y_pos.pop(index_removed)
+                        self.x_low.pop(index_removed)
+                        self.x_high.pop(index_removed)
+                        self.y_low.pop(index_removed)
+                        self.y_high.pop(index_removed)
+                        # p.removeBody(self.trees[index_removed])
+                        # self.trees.pop(index_removed)
+                        self.n_trees -= 1
 
-            if object_removed == 1:
-                self.objects_listing.pop(index_removed)
-                self.x_pos.pop(index_removed)
-                self.y_pos.pop(index_removed)
-                self.x_low.pop(index_removed)
-                self.x_high.pop(index_removed)
-                self.y_low.pop(index_removed)
-                self.y_high.pop(index_removed)
-                # p.removeBody(self.trees[index_removed])
-                # self.trees.pop(index_removed)
-                self.n_trees -= 1
-                # print("tree removed")
-
-                # print("obs: ",self.get_observation())
-
-            if object_removed == 2:
-                self.objects_listing.pop(index_removed)
-                self.x_pos.pop(index_removed)
-                self.y_pos.pop(index_removed)
-                self.x_low.pop(index_removed)
-                self.x_high.pop(index_removed)
-                self.y_low.pop(index_removed)
-                self.y_high.pop(index_removed)
-                # p.removeBody(self.rocks[index_removed-self.n_trees])
-                # self.rocks.pop(index_removed-self.n_trees)
-                self.n_rocks -= 1
-                # print("rock removed")
-                # print("obs: ",self.get_observation())
+                if (
+                    read.reading == read.TREE1
+                    or read.reading == read.TREE2
+                    or read.reading == read.TREE3
+                    or read.reading == read.TREE4
+                ):
+                    if object_removed == 2:
+                        self.objects_listing.pop(index_removed)
+                        self.x_pos.pop(index_removed)
+                        self.y_pos.pop(index_removed)
+                        self.x_low.pop(index_removed)
+                        self.x_high.pop(index_removed)
+                        self.y_low.pop(index_removed)
+                        self.y_high.pop(index_removed)
+                        # p.removeBody(self.rocks[index_removed-self.n_trees])
+                        # self.rocks.pop(index_removed-self.n_trees)
+                        self.n_rocks -= 1
+                        # print("rock removed")
+                        # print("obs: ",self.get_observation())
 
         elif action == 4:  # Craft
             x = basePos[0]
             y = basePos[1]
 
-            reading = self.RosNode.read_environment()
-            at_crafting_table = reading.reading == reading.CRAFTING_TABLE
+            read = self.RosNode.read_environment()
+            for _ in range(0, 5):
+                if read.reading == read.NONE:
+                    read = self.RosNode.read_environment()
+            if read.reading == read.NONE:
+                rospy.logerr(
+                    "There should have been an object there, but I sure don't see it..."
+                )
 
-            if (
-                at_crafting_table
-                and self.inventory["wood"] >= 2
-                and self.inventory["stone"] >= 1
-            ):
-                self.inventory["pogo"] += 1
-                self.inventory["wood"] -= 2
-                self.inventory["stone"] -= 1
-                done = True
-                reward = self.reward_done
+            if read.reading == read.CRAFTING_TABLE:
+                if (
+                    self.inventory["wood"] >= 2
+                    and self.inventory["stone"] >= 1
+                ):
+                    self.inventory["pogo"] += 1
+                    self.inventory["wood"] -= 2
+                    self.inventory["stone"] -= 1
+                    done = True
+                    reward = self.reward_done
 
         self.agent_loc = basePos
         self.agent_orn = baseOrn
