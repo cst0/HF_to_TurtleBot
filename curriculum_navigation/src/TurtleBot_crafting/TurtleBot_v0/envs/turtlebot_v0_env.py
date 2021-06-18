@@ -290,6 +290,9 @@ class TurtleBotV0Env(gym.Env):
         self.x_pos_copy = copy.deepcopy(self.x_pos)
         self.y_pos_copy = copy.deepcopy(self.y_pos)
 
+        print("X_POS", self.x_pos)
+        print("Y_POS", self.y_pos)
+
         return obs
 
     def step(self, action):
@@ -330,54 +333,61 @@ class TurtleBotV0Env(gym.Env):
                 basePos[0] = x_new
                 basePos[1] = y_new
                 self.RosNode.goto_forward()
+                point = self.RosNode.get_position().point
+                #basePos[0] = point.x
+                #basePos[1] = point.y
 
         elif action == 3:  # Break
             x = basePos[0]
             y = basePos[1]
             print("Inventory: ", self.inventory)
-            this_index_removed = None
-            this_object_removed = None
+            add_to_inventory = False
             for i in range(self.n_trees + self.n_rocks + self.n_table):
                 if abs(self.x_pos[i] - x) < 0.3:
                     if abs(self.y_pos[i] - y) < 0.3:
                         if i < self.n_trees:
                             self.inventory["wood"] += 1
-                            this_object_removed = 1
-                            this_index_removed = i
-                            #if self.inventory["wood"] <= 2:
+                            object_removed = 1
+                            index_removed = i
+                            add_to_inventory = True
+                            # if self.inventory["wood"] <= 2:
                             #    reward = self.reward_break
-                            #elif self.inventory["wood"] > 2:
+                            # elif self.inventory["wood"] > 2:
                             #    reward = self.reward_extra_inventory
                         elif i > self.n_trees - 1 and i < self.n_trees + self.n_rocks:
                             self.inventory["stone"] += 1
-                            this_object_removed = 2
-                            this_index_removed = i
-                            #if self.inventory["stone"] <= 1:
+                            object_removed = 2
+                            index_removed = i
+                            add_to_inventory = True
+                            # if self.inventory["stone"] <= 1:
                             #    reward = self.reward_break
-                            #elif self.inventory["stone"] > 1:
+                            # elif self.inventory["stone"] > 1:
                             #    reward = self.reward_extra_inventory
 
-            if this_object_removed is not None:
-                print('expected to get object, index', this_index_removed, ' object ', this_object_removed)
-            reading = self.RosNode.read_environment()
-            if (
-                reading.reading == reading.TREE1
-                or reading.reading == reading.TREE2
-                or reading.reading == reading.TREE3
-                or reading.reading == reading.TREE4
-            ):
-                # this is a tree. which tree is it?
-                object_removed = 1
-                for n in range(0, len(self.objects_listing)):
-                    if self.objects_listing[n] == reading.reading:
-                        index_removed = n
+            if add_to_inventory:
+                print("object interaction with type ", object_removed, "index", index_removed)
+                print("I think I'm at", x, ",", y)
+                time.sleep(20)
 
-            if reading.reading == reading.ROCK1 or reading.reading == reading.ROCK2:
-                # this is a rock. which rock is it?
-                object_removed = 2
-                for n in range(0, len(self.objects_listing)):
-                    if self.objects_listing[n] == reading.reading:
-                        index_removed = n
+            #            reading = self.RosNode.read_environment()
+            #            if (
+            #                reading.reading == reading.TREE1
+            #                or reading.reading == reading.TREE2
+            #                or reading.reading == reading.TREE3
+            #                or reading.reading == reading.TREE4
+            #            ):
+            #                # this is a tree. which tree is it?
+            #                object_removed = 1
+            #                for n in range(0, len(self.objects_listing)):
+            #                    if self.objects_listing[n] == reading.reading:
+            #                        index_removed = n
+            #
+            #            if reading.reading == reading.ROCK1 or reading.reading == reading.ROCK2:
+            #                # this is a rock. which rock is it?
+            #                object_removed = 2
+            #                for n in range(0, len(self.objects_listing)):
+            #                    if self.objects_listing[n] == reading.reading:
+            #                        index_removed = n
 
             if object_removed == 1:
                 self.objects_listing.pop(index_removed)
