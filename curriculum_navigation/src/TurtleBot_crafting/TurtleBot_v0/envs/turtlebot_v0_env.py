@@ -3,6 +3,7 @@ import math
 import os
 import sys
 import time
+from typing import List
 
 import gym
 from gym import error, spaces, utils
@@ -335,7 +336,7 @@ class TurtleBotV0Env(gym.Env):
                 basePos[0] = x_new
                 basePos[1] = y_new
                 self.RosNode.goto_forward()
-                point = self.RosNode.get_position().point
+                #point = self.RosNode.get_position().point
                 time.sleep(1)
                 # basePos[0] = point.x
                 # basePos[1] = point.y
@@ -376,6 +377,13 @@ class TurtleBotV0Env(gym.Env):
                     rospy.logerr(
                         "There should have been an object there, but I sure don't see it..."
                     )
+
+                reading:List[int] = []
+                if type(read.reading) != list:
+                    reading = [read.reading]
+                elif type(read.reading) == list:
+                    reading = read.reading # type: ignore
+
                 print(
                     "object interaction with type ",
                     object_removed,
@@ -385,10 +393,10 @@ class TurtleBotV0Env(gym.Env):
                 print("I think I'm at", x, ",", y)
 
                 if (
-                    read.reading == read.TREE1
-                    or read.reading == read.TREE2
-                    or read.reading == read.TREE3
-                    or read.reading == read.TREE4
+                    read.TREE1 in reading or
+                    read.TREE2 in reading or
+                    read.TREE3 in reading or
+                    read.TREE4 in reading
                 ):
                     if object_removed == 1:
                         self.objects_listing.pop(index_removed)
@@ -403,10 +411,8 @@ class TurtleBotV0Env(gym.Env):
                         self.n_trees -= 1
 
                 if (
-                    read.reading == read.TREE1
-                    or read.reading == read.TREE2
-                    or read.reading == read.TREE3
-                    or read.reading == read.TREE4
+                    read.ROCK1 in reading or
+                    read.ROCK2 in reading
                 ):
                     if object_removed == 2:
                         self.objects_listing.pop(index_removed)
@@ -435,7 +441,13 @@ class TurtleBotV0Env(gym.Env):
                     "There should have been an object there, but I sure don't see it..."
                 )
 
-            if read.reading == read.CRAFTING_TABLE:
+            reading:List[int] = []
+            if type(read.reading) != list:
+                reading = [read.reading]
+            elif type(read.reading) == list:
+                reading = read.reading # type: ignore
+
+            if read.CRAFTING_TABLE in reading:
                 if (
                     self.inventory["wood"] >= 2
                     and self.inventory["stone"] >= 1
